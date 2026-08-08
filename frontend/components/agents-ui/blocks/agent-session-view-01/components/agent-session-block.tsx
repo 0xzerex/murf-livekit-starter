@@ -205,7 +205,47 @@ export function AgentSessionView_01({
       {...props}
     >
       <Fade top className="absolute inset-x-4 top-0 z-10 h-40" />
-      {/* transcript */}
+
+      {/* Floating Active Speaker & Agent State Indicator */}
+      <div className="absolute top-16 inset-x-0 z-30 flex justify-center pointer-events-none px-4">
+        <div className="flex items-center gap-2.5 rounded-full bg-white/90 dark:bg-slate-900/90 backdrop-blur-md px-4 py-2 shadow-lg border border-slate-200 dark:border-slate-800 pointer-events-auto">
+          {agentState === 'speaking' && (
+            <>
+              <span className="flex size-3 rounded-full bg-[#0F4C81] animate-ping" />
+              <span className="text-xs font-bold text-[#0F4C81] dark:text-blue-400">
+                Jan Sahay AI is speaking...
+              </span>
+            </>
+          )}
+
+          {agentState === 'listening' && (
+            <>
+              <span className="flex size-3 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400">
+                Listening to you...
+              </span>
+            </>
+          )}
+
+          {agentState === 'thinking' && (
+            <>
+              <span className="flex size-3 rounded-full bg-amber-500 animate-spin" />
+              <span className="text-xs font-bold text-amber-700 dark:text-amber-400">
+                Jan Sahay AI is thinking...
+              </span>
+            </>
+          )}
+
+          {agentState !== 'speaking' && agentState !== 'listening' && agentState !== 'thinking' && (
+            <>
+              <span className="flex size-2.5 rounded-full bg-blue-500" />
+              <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                Session Active • Jan Sahay AI
+              </span>
+            </>
+          )}
+        </div>
+      </div>
 
       <div className="absolute top-0 bottom-[135px] flex w-full flex-col md:bottom-[170px]">
         <AnimatePresence>

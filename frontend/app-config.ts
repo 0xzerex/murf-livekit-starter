@@ -33,36 +33,25 @@ export interface AppConfig {
 }
 
 export const APP_CONFIG_DEFAULTS: AppConfig = {
-  companyName: 'Murf AI',
-  pageTitle: 'Voice Agent Starter',
-  pageDescription: 'A voice agent powered by Murf Falcon — the fastest TTS API',
+  companyName: 'Jan Sahay | जन सहाय',
+  pageTitle: 'Jan Sahay — Citizen AI Assistant (जन सहाय)',
+  pageDescription:
+    'Get instant guidance on government schemes, financial literacy, fraud prevention, cyber safety, banking, and digital payments through secure AI voice conversations.',
 
   supportsChatInput: true,
-  supportsVideoInput: true,
-  supportsScreenShare: true,
+  supportsVideoInput: false,
+  supportsScreenShare: false,
   isPreConnectBufferEnabled: true,
 
-  logo: '/murf-logo.svg',
-  accent: '#6366F1',
-  logoDark: '/murf-logo-dark.svg',
-  accentDark: '#818cf8',
-  startButtonText: 'Start talking',
+  logo: '/jan-sahay-avatar.png',
+  accent: '#0F4C81',
+  logoDark: '/jan-sahay-avatar.png',
+  accentDark: '#FF9933',
+  startButtonText: '🎙️ Start Voice Assistant',
 
-  // optional: audio visualization configuration
-  // audioVisualizerType: 'bar',
-  // audioVisualizerColor: '#002cf2',
-  // audioVisualizerColorDark: '#1fd5f9',
-  // audioVisualizerColorShift: 0.3,
-  // audioVisualizerBarCount: 5,
-  // audioVisualizerType: 'radial',
-  // audioVisualizerRadialBarCount: 24,
-  // audioVisualizerRadialRadius: 100,
-  // audioVisualizerType: 'grid',
-  // audioVisualizerGridRowCount: 25,
-  // audioVisualizerGridColumnCount: 25,
-  // audioVisualizerType: 'wave',
-  // audioVisualizerWaveLineWidth: 3,
-  // audioVisualizerType: 'aura',
+  audioVisualizerType: 'wave',
+  audioVisualizerColor: '#0F4C81',
+  audioVisualizerColorDark: '#FF9933',
 
   // agent dispatch configuration
   agentName: process.env.AGENT_NAME ?? undefined,

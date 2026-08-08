@@ -1,65 +1,233 @@
+import React from 'react';
+import {
+  ShieldCheckIcon,
+  LockKeyIcon,
+  BankIcon,
+  WalletIcon,
+  HeadsetIcon,
+  MicrophoneIcon,
+  ArrowRightIcon,
+  CheckCircleIcon,
+  SparkleIcon,
+} from '@phosphor-icons/react';
 import { Button } from '@/components/ui/button';
-
-function WelcomeImage() {
-  return (
-    <svg
-      width="64"
-      height="64"
-      viewBox="0 0 64 64"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className="text-fg0 mb-4 size-16"
-    >
-      <path
-        d="M15 24V40C15 40.7957 14.6839 41.5587 14.1213 42.1213C13.5587 42.6839 12.7956 43 12 43C11.2044 43 10.4413 42.6839 9.87868 42.1213C9.31607 41.5587 9 40.7957 9 40V24C9 23.2044 9.31607 22.4413 9.87868 21.8787C10.4413 21.3161 11.2044 21 12 21C12.7956 21 13.5587 21.3161 14.1213 21.8787C14.6839 22.4413 15 23.2044 15 24ZM22 5C21.2044 5 20.4413 5.31607 19.8787 5.87868C19.3161 6.44129 19 7.20435 19 8V56C19 56.7957 19.3161 57.5587 19.8787 58.1213C20.4413 58.6839 21.2044 59 22 59C22.7956 59 23.5587 58.6839 24.1213 58.1213C24.6839 57.5587 25 56.7957 25 56V8C25 7.20435 24.6839 6.44129 24.1213 5.87868C23.5587 5.31607 22.7956 5 22 5ZM32 13C31.2044 13 30.4413 13.3161 29.8787 13.8787C29.3161 14.4413 29 15.2044 29 16V48C29 48.7957 29.3161 49.5587 29.8787 50.1213C30.4413 50.6839 31.2044 51 32 51C32.7956 51 33.5587 50.6839 34.1213 50.1213C34.6839 49.5587 35 48.7957 35 48V16C35 15.2044 34.6839 14.4413 34.1213 13.8787C33.5587 13.3161 32.7956 13 32 13ZM42 21C41.2043 21 40.4413 21.3161 39.8787 21.8787C39.3161 22.4413 39 23.2044 39 24V40C39 40.7957 39.3161 41.5587 39.8787 42.1213C40.4413 42.6839 41.2043 43 42 43C42.7957 43 43.5587 42.6839 44.1213 42.1213C44.6839 41.5587 45 40.7957 45 40V24C45 23.2044 44.6839 22.4413 44.1213 21.8787C43.5587 21.3161 42.7957 21 42 21ZM52 17C51.2043 17 50.4413 17.3161 49.8787 17.8787C49.3161 18.4413 49 19.2044 49 20V44C49 44.7957 49.3161 45.5587 49.8787 46.1213C50.4413 46.6839 51.2043 47 52 47C52.7957 47 53.5587 46.6839 54.1213 46.1213C54.6839 45.5587 55 44.7957 55 44V20C55 19.2044 54.6839 18.4413 54.1213 17.8787C53.5587 17.3161 52.7957 17 52 17Z"
-        fill="currentColor"
-      />
-    </svg>
-  );
-}
+import { JanSahayAvatar, type AgentDisplayState } from '@/components/app/financial-avatar';
 
 interface WelcomeViewProps {
   startButtonText: string;
   onStartCall: () => void;
+  agentState?: AgentDisplayState;
+  hasEnded?: boolean;
 }
 
-export const WelcomeView = ({
-  startButtonText,
-  onStartCall,
-  ref,
-}: React.ComponentProps<'div'> & WelcomeViewProps) => {
-  return (
-    <div ref={ref}>
-      <section className="bg-background flex flex-col items-center justify-center text-center">
-        <WelcomeImage />
+export const WelcomeView = React.forwardRef<HTMLDivElement, React.ComponentProps<'div'> & WelcomeViewProps>(
+  ({ startButtonText, onStartCall, agentState = 'ready', hasEnded = false, className, ...props }, ref) => {
+    const featureCards = [
+      {
+        id: 'fraud',
+        title: 'Fraud Prevention & Cyber Safety',
+        icon: <LockKeyIcon size={26} className="text-[#0F4C81] dark:text-blue-400" />,
+        color: 'border-l-4 border-l-[#0F4C81]',
+        desc: 'Instant guidance on reporting UPI scams, phishing, fake calls, and OTP protection.',
+        badge: 'Popular',
+      },
+      {
+        id: 'schemes',
+        title: 'Government Schemes & Benefits',
+        icon: <BankIcon size={26} className="text-[#2E7D32] dark:text-emerald-400" />,
+        color: 'border-l-4 border-l-[#2E7D32]',
+        desc: 'Check eligibility & application steps for PM Kisan, Ayushman Bharat, pension & housing schemes.',
+        badge: 'Public Welfare',
+      },
+      {
+        id: 'finance',
+        title: 'Financial & Banking Literacy',
+        icon: <WalletIcon size={26} className="text-[#FF9933] dark:text-amber-400" />,
+        color: 'border-l-4 border-l-[#FF9933]',
+        desc: 'Simple explanations for bank loans, savings accounts, digital payment safety, and investments.',
+        badge: 'Financial Awareness',
+      },
+      {
+        id: 'complaint',
+        title: 'Complaint Assistance & Helplines',
+        icon: <HeadsetIcon size={26} className="text-[#0F4C81] dark:text-blue-400" />,
+        color: 'border-l-4 border-l-[#0F4C81]',
+        desc: 'Step-by-step help for registering cybercrime complaints (1930) and banking dispute resolution.',
+        badge: 'Helpline Guide',
+      },
+    ];
 
-        <p className="text-foreground max-w-prose pt-1 leading-6 font-medium">
-          Chat live with your voice AI agent
-        </p>
+    const promptChips = [
+      'How do I report UPI fraud?',
+      'Which government schemes am I eligible for?',
+      'Explain PM Kisan scheme details.',
+      'How can I avoid online financial scams?',
+      'What should I do if someone asks for my OTP?',
+    ];
 
-        <Button
-          size="lg"
-          onClick={onStartCall}
-          className="mt-6 w-64 rounded-full font-mono text-xs font-bold tracking-wider uppercase"
-        >
-          {startButtonText}
-        </Button>
-      </section>
+    const scrollToServices = () => {
+      document.getElementById('services')?.scrollIntoView({ behavior: 'smooth' });
+    };
 
-      <div className="fixed bottom-5 left-0 flex w-full items-center justify-center">
-        <p className="text-muted-foreground max-w-prose pt-1 text-xs leading-5 font-normal text-pretty md:text-sm">
-          Need help getting set up? Check out the{' '}
-          <a
-            target="_blank"
-            rel="noopener noreferrer"
-            href="https://docs.livekit.io/agents/start/voice-ai/"
-            className="underline"
-          >
-            Voice AI quickstart
-          </a>
-          .
-        </p>
+    return (
+      <div ref={ref} className="w-full min-h-screen py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto flex flex-col justify-between">
+        {/* Main Hero & Voice Section */}
+        <section className="flex flex-col items-center justify-center text-center mt-4 mb-10">
+          {/* Avatar and Glowing Mic Indicator */}
+          <div className="relative mb-6">
+            <JanSahayAvatar state={hasEnded ? 'ended' : agentState} size="xl" showBadge={false} />
+            <div className="absolute -bottom-2 right-2 bg-[#2E7D32] text-white p-2 rounded-full shadow-lg border-2 border-white dark:border-slate-800 animate-pulse">
+              <MicrophoneIcon size={20} weight="bold" />
+            </div>
+          </div>
+
+          {/* Call Ended Alert Banner */}
+          {hasEnded && (
+            <div className="mb-6 rounded-2xl border border-slate-300 bg-white p-4 shadow-md dark:border-slate-700 dark:bg-slate-800 max-w-md">
+              <div className="flex items-center gap-2 justify-center text-slate-800 dark:text-slate-100 font-bold">
+                <CheckCircleIcon size={22} className="text-emerald-600" />
+                Conversation Ended
+              </div>
+              <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+                Thank you for using Jan Sahay. You can start a new voice session anytime.
+              </p>
+            </div>
+          )}
+
+          {/* Title & Subtitle */}
+          <h1 className="text-3xl sm:text-5xl font-black text-slate-900 dark:text-white tracking-tight flex items-center justify-center gap-2">
+            <span>🛡️ Jan Sahay</span>
+            <span className="text-sm font-semibold text-[#FF9933] bg-amber-50 dark:bg-amber-950/60 px-2.5 py-1 rounded-full border border-amber-200 dark:border-amber-800">
+              जन सहाय
+            </span>
+          </h1>
+
+          <p className="mt-4 text-slate-600 dark:text-slate-300 max-w-2xl text-base sm:text-lg leading-relaxed font-normal">
+            Get instant guidance on government schemes, financial literacy, fraud prevention, cyber safety, banking, and digital payments through secure AI-powered voice conversations.
+          </p>
+
+          {/* CTA Buttons */}
+          <div className="mt-8 flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
+            <Button
+              size="lg"
+              onClick={onStartCall}
+              className="w-full sm:w-72 h-14 rounded-full bg-[#0F4C81] hover:bg-[#0b3860] text-white font-bold text-base shadow-xl shadow-[#0F4C81]/30 flex items-center justify-center gap-2.5 transition-all hover:scale-105"
+            >
+              <MicrophoneIcon size={22} weight="fill" className="text-[#FF9933]" />
+              {hasEnded ? '🔄 Start Again' : startButtonText}
+            </Button>
+
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={scrollToServices}
+              className="w-full sm:w-44 h-14 rounded-full border-2 border-slate-300 dark:border-slate-700 font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+            >
+              Learn More
+            </Button>
+          </div>
+
+          {/* Clickable Example Prompt Chips */}
+          <div className="mt-10 w-full max-w-3xl">
+            <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
+              <SparkleIcon size={14} className="text-[#FF9933]" />
+              Try Asking By Voice:
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              {promptChips.map((prompt, idx) => (
+                <button
+                  key={idx}
+                  onClick={onStartCall}
+                  className="rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3.5 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-200 shadow-sm hover:border-[#0F4C81] hover:text-[#0F4C81] transition-all hover:shadow-md cursor-pointer"
+                >
+                  💬 &quot;{prompt}&quot;
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Feature Cards Grid */}
+        <section id="services" className="py-10 border-t border-slate-200/80 dark:border-slate-800">
+          <div className="text-center mb-8">
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
+              Core Citizen Assistance Services
+            </h2>
+            <p className="text-sm text-slate-500 mt-1">
+              Comprehensive AI guidance designed for every Indian citizen
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {featureCards.map((card) => (
+              <div
+                key={card.id}
+                className={`bg-white dark:bg-slate-800/90 p-6 rounded-2xl shadow-md border border-slate-200/60 dark:border-slate-700/60 hover:shadow-lg transition-all ${card.color} group`}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-700/50 group-hover:scale-110 transition-transform">
+                    {card.icon}
+                  </div>
+                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                    {card.badge}
+                  </span>
+                </div>
+                <h3 className="mt-4 text-lg font-bold text-slate-900 dark:text-white group-hover:text-[#0F4C81] transition-colors">
+                  {card.title}
+                </h3>
+                <p className="mt-2 text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+                  {card.desc}
+                </p>
+                <button
+                  onClick={onStartCall}
+                  className="mt-4 inline-flex items-center gap-1.5 text-xs font-bold text-[#0F4C81] dark:text-blue-400 hover:underline"
+                >
+                  Ask Voice AI <ArrowRightIcon size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Trust Badges */}
+        <section id="safety-tips" className="py-6 my-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+            <div className="flex flex-col items-center p-2">
+              <ShieldCheckIcon size={28} className="text-[#0F4C81] dark:text-blue-400 mb-1" />
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-200">Secure AI Assistance</span>
+              <span className="text-[10px] text-slate-500">Official Standard</span>
+            </div>
+            <div className="flex flex-col items-center p-2">
+              <LockKeyIcon size={28} className="text-[#2E7D32] dark:text-emerald-400 mb-1" />
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-200">Privacy Protected</span>
+              <span className="text-[10px] text-slate-500">Encrypted Audio</span>
+            </div>
+            <div className="flex flex-col items-center p-2">
+              <BankIcon size={28} className="text-[#FF9933] dark:text-amber-400 mb-1" />
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-200">Trusted Information</span>
+              <span className="text-[10px] text-slate-500">Verified Welfare Data</span>
+            </div>
+            <div className="flex flex-col items-center p-2">
+              <HeadsetIcon size={28} className="text-[#0F4C81] dark:text-blue-400 mb-1" />
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-200">Multilingual Support</span>
+              <span className="text-[10px] text-slate-500">Voice-First Portal</span>
+            </div>
+          </div>
+        </section>
+
+        {/* Footer */}
+        <footer id="contact" className="text-center py-4 border-t border-slate-200/60 dark:border-slate-800 text-xs text-slate-500">
+          <p className="font-medium">
+            🛡️ <strong>Jan Sahay (जन सहाय)</strong> — AI Citizen Assistance Platform for Financial Literacy, Cyber Safety & Public Welfare.
+          </p>
+          <p className="mt-1 text-[11px] text-slate-400">
+            For emergency cyber fraud reporting, call National Cyber Crime Helpline: <strong>1930</strong>.
+          </p>
+        </footer>
       </div>
-    </div>
-  );
-};
+    );
+  }
+);
+
+WelcomeView.displayName = 'WelcomeView';
+
