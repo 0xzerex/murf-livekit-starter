@@ -1,4 +1,7 @@
+import json
 import logging
+import sys
+from pathlib import Path
 
 from dotenv import load_dotenv
 from livekit import rtc
@@ -8,46 +11,75 @@ from livekit.agents import (
     AgentSession,
     JobContext,
     JobProcess,
+    RunContext,
     cli,
-    inference,
-    tokenize,
+    function_tool,
     room_io,
-    UserInputTranscribedEvent,
+    tokenize,
 )
-from livekit.plugins import murf, silero, google, deepgram, noise_cancellation
+from livekit.plugins import deepgram, google, murf, noise_cancellation, silero
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
 
 logger = logging.getLogger("agent")
 
 load_dotenv(".env.local")
 
-import sys
-from pathlib import Path
-
 sys.path.append(str(Path(__file__).parent))
 
-from prompt import SYSTEM_PROMPT
+from db import get_caller, init_db, upsert_caller  # noqa: E402
+from prompt import SYSTEM_PROMPT  # noqa: E402
+
 
 class Assistant(Agent):
     def __init__(self) -> None:
         super().__init__(instructions=SYSTEM_PROMPT)
 
-    # To add tools, use the @function_tool decorator.
-    # Here's an example that adds a simple weather tool.
-    # You also have to add `from livekit.agents import function_tool, RunContext` to the top of this file
-    # @function_tool
-    # async def lookup_weather(self, context: RunContext, location: str):
-    #     """Use this tool to look up current weather information in the given location.
-    #
-    #     If the location is not supported by the weather service, the tool will indicate this. You must tell the user the location's weather is unavailable.
-    #
-    #     Args:
-    #         location: The location to look up weather information for (e.g. city name)
-    #     """
-    #
-    #     logger.info(f"Looking up weather for {location}")
-    #
-    #     return "sunny with a temperature of 70 degrees."
+    @function_tool
+    async def lookup_caller(self, context: RunContext, user_id: str) -> str:
+        """Use this tool to look up a caller by their user_id or phone number to retrieve their saved profile and facts.
+
+        Args:
+            user_id: The unique identifier or phone number of the caller.
+        """
+        logger.info(
+            f"Tool execution: Looking up caller profile for user_id '{user_id}'"
+        )
+        record = get_caller(user_id)
+        if not record:
+            return f"No caller record found for user_id: {user_id}."
+        return json.dumps(record, ensure_ascii=False)
+
+    @function_tool
+    async def save_caller_info(
+        self,
+        context: RunContext,
+        user_id: str,
+        name: str,
+        language_preference: str = "Hindi",
+        facts: dict | None = None,
+    ) -> str:
+        """Use this tool to save or update caller information after receiving explicit caller consent.
+
+        IMPORTANT MANDATORY RULES:
+        1. Only call this tool AFTER the caller explicitly consents to saving their information.
+        2. NEVER include bank account numbers, card numbers, Aadhaar, PAN, PIN, or OTP numbers in facts.
+
+        Args:
+            user_id: The unique identifier or phone number of the caller.
+            name: The caller's name.
+            language_preference: Preferred language (e.g. Hindi, English, Hinglish).
+            facts: Key-value facts (e.g. schemes_checked, eligibility answers, occupation).
+        """
+        logger.info(
+            f"Tool execution: Saving caller info for '{name}' (user_id: '{user_id}')"
+        )
+        saved_record = upsert_caller(
+            user_id=user_id,
+            name=name,
+            language_preference=language_preference,
+            facts=facts or {},
+        )
+        return f"Successfully saved caller profile for {name} (user_id: {user_id}). Current facts: {saved_record['facts']}"
 
 
 server = AgentServer()
@@ -55,6 +87,8 @@ server = AgentServer()
 
 def prewarm(proc: JobProcess):
     proc.userdata["vad"] = silero.VAD.load()
+    # Initialize caller database
+    init_db()
 
 
 server.setup_fnc = prewarm
@@ -63,7 +97,6 @@ server.setup_fnc = prewarm
 @server.rtc_session(agent_name="my-agent")
 async def my_agent(ctx: JobContext):
     # Logging setup
-    # Add any other context you want in all log entries here
     ctx.log_context_fields = {
         "room": ctx.room.name,
     }
@@ -72,10 +105,10 @@ async def my_agent(ctx: JobContext):
     session = AgentSession(
         stt=deepgram.STT(model="nova-3", language="multi"),
         llm=google.LLM(
-    model="gemini-3.5-flash",
-),
+            model="gemini-3.6-flash",
+        ),
         tts=murf.TTS(
-            voice="Anisha", # make sure locale key is not hardcoded
+            voice="Anisha",
             style="Conversation",
             tokenizer=tokenize.basic.SentenceTokenizer(min_sentence_len=2),
             text_pacing=True,
@@ -84,52 +117,6 @@ async def my_agent(ctx: JobContext):
         vad=ctx.proc.userdata["vad"],
         preemptive_generation=True,
     )
-
-    # @session.on("user_input_transcribed")
-    # def on_user_input_transcribed(ev: UserInputTranscribedEvent):
-    #     transcript = ev.transcript.strip().lower()
-    #     if not transcript:
-    #         return
-
-    #     # Check for Devanagari script characters (native Hindi)
-    #     has_devanagari = any(ord(c) >= 0x0900 and ord(c) <= 0x097F for c in transcript)
-
-    #     # Check for common Hinglish/Hindi romanized keywords
-    #     hindi_keywords = {
-    #         "kya", "hai", "aur", "main", "haan", "nahin", "aap", "namaste", "shukriya", 
-    #         "yojana", "batao", "bataiye", "samjhao", "dhan", "suraksha", "bima", "pension",
-    #         "mein", "ke", "ki", "se", "ko", "ka", "jo", "toh", "bhi", "ho", "kar", "raha",
-    #         "rahi", "rha", "rhi", "mujhe", "mera", "meri", "hum", "tum", "apna", "apni",
-    #         "karke", "karo", "karna", "tha", "thi", "the", "ab", "kab", "tab", "sab"
-    #     }
-    #     words = set(transcript.split())
-    #     has_hindi_words = not words.isdisjoint(hindi_keywords)
-
-    #     if has_devanagari or has_hindi_words:
-    #         logger.info(f"Detected Hindi/Hinglish speech: '{ev.transcript}'. Switching TTS to hi-IN-anisha.")
-    #         session.tts.update_options(voice="hi-IN-anisha")
-    #     else:
-    #         logger.info(f"Detected English speech: '{ev.transcript}'. Switching TTS to en-IN-anisha.")
-    #         session.tts.update_options(voice="en-IN-anisha")
-
-
-    # To use a realtime model instead of a voice pipeline, use the following session setup instead.
-    # (Note: This is for the OpenAI Realtime API. For other providers, see https://docs.livekit.io/agents/models/realtime/))
-    # 1. Install livekit-agents[openai]
-    # 2. Set OPENAI_API_KEY in .env.local
-    # 3. Add `from livekit.plugins import openai` to the top of this file
-    # 4. Use the following session setup instead of the version above
-    # session = AgentSession(
-    #     llm=openai.realtime.RealtimeModel(voice="marin")
-    # )
-
-    # # Add a virtual avatar to the session, if desired
-    # # For other providers, see https://docs.livekit.io/agents/models/avatar/
-    # avatar = hedra.AvatarSession(
-    #   avatar_id="...",  # See https://docs.livekit.io/agents/models/avatar/plugins/hedra
-    # )
-    # # Start the avatar and wait for it to join
-    # await avatar.start(session, room=ctx.room)
 
     # Start the session, which initializes the voice pipeline and warms up the models
     await session.start(
