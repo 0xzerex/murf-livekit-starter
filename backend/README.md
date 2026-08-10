@@ -224,6 +224,20 @@ backend/
 └── railway.toml           # Railway deploy config
 ```
 
+## Financial Services Track: Function Call & Domain Data
+
+### Scheme Eligibility Check & Document Checklist Tool (`check_scheme_eligibility`)
+
+The voice agent is equipped with a real domain data lookup tool function (`check_scheme_eligibility`) tailored for **Financial Services** in India:
+
+- **Supported Schemes**: PMSBY (Accident Insurance), PMJJBY (Life Insurance), APY (Atal Pension Yojana), SSY (Sukanya Samriddhi Yojana), PMJDY (Jan Dhan Yojana), PM-Kisan (Farmer Income Support), PMAY (Housing Subsidy), and PM-MUDRA (Micro Enterprise Loans).
+- **Data Source & As-of Date**: Real structured scheme data sourced from official government portals (`myScheme` / `JanSamarth`). Data freshness is explicitly tracked and reported as of **10 August 2026**.
+- **Tool Description Strategy**: The `@function_tool` docstring in `src/agent.py` explicitly demarks when the LLM must call the tool (when evaluating scheme qualification or requesting document checklists) and anti-triggers (casual greetings, saving memory).
+- **Out-Loud Failure Path**: Network connection timeouts or processing errors trigger an explicit `FAILURE_ERROR` payload with spoken instructions forcing the voice agent to speak the failure out loud to the caller in conversational Hindi rather than remaining silent or inventing facts.
+- **Document Checklist**: Automatically generates the required document checklist (Aadhaar, bank account details, land records, birth certificates, income proof) based on scheme rules.
+
+---
+
 ## Links
 
 - [Murf Falcon TTS Docs](https://murf.ai/api/docs/text-to-speech/streaming)

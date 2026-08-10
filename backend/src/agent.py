@@ -28,11 +28,71 @@ sys.path.append(str(Path(__file__).parent))
 
 from db import get_caller, init_db, upsert_caller  # noqa: E402
 from prompt import SYSTEM_PROMPT  # noqa: E402
+from schemes import evaluate_scheme_eligibility  # noqa: E402
 
 
 class Assistant(Agent):
     def __init__(self) -> None:
         super().__init__(instructions=SYSTEM_PROMPT)
+
+    @function_tool
+    async def check_scheme_eligibility(
+        self,
+        context: RunContext,
+        scheme_name: str,
+        age: int | None = None,
+        annual_income_inr: float | None = None,
+        occupation: str | None = None,
+        gender: str | None = None,
+        has_bank_account: bool | None = None,
+        has_girl_child_under_10: bool | None = None,
+    ) -> str:
+        """Use this tool ONLY when checking if a caller is eligible for an Indian government financial scheme (e.g. PMSBY, PMJJBY, APY, SSY, PMJDY, PM-Kisan, PMAY, PM-MUDRA) or when fetching the mandatory document checklist for a scheme.
+
+        DO NOT invoke this tool for general greetings, small talk, saving caller profiles, or unrelated questions.
+
+        Args:
+            scheme_name: The name or acronym of the financial scheme (e.g. 'PMSBY', 'PMJJBY', 'APY', 'Sukanya Samriddhi', 'Jan Dhan', 'PM Kisan', 'PMAY', 'MUDRA').
+            age: The caller's age in years (if provided).
+            annual_income_inr: The caller's annual household income in Indian Rupees (if provided).
+            occupation: The caller's occupation or job (e.g. 'farmer', 'shopkeeper', 'student', 'unorganized worker').
+            gender: The caller's gender ('male', 'female', 'other').
+            has_bank_account: Whether the caller has an active savings bank account (True or False).
+            has_girl_child_under_10: For Sukanya Samriddhi Yojana (SSY), whether applicant has a girl child under 10 years old (True or False).
+        """
+        logger.info(
+            f"Tool execution: Evaluating scheme eligibility for '{scheme_name}' (age={age}, income={annual_income_inr}, occupation={occupation})"
+        )
+        try:
+            result = evaluate_scheme_eligibility(
+                scheme_name=scheme_name,
+                age=age,
+                annual_income_inr=annual_income_inr,
+                occupation=occupation,
+                gender=gender,
+                has_bank_account=has_bank_account,
+                has_girl_child_under_10=has_girl_child_under_10,
+            )
+            return json.dumps(result, ensure_ascii=False)
+        except Exception as e:
+            logger.error(
+                f"Error executing check_scheme_eligibility for '{scheme_name}': {e}",
+                exc_info=True,
+            )
+            # Step 4 Requirement: Handle failure path out loud
+            error_payload = {
+                "status": "FAILURE_ERROR",
+                "error_details": str(e),
+                "spoken_instruction": (
+                    "ALERT: The scheme eligibility service experienced a connection/execution failure. "
+                    "You MUST inform the caller out loud immediately: "
+                    "'क्षमा करें, स्कीम डेटाबेस से जुड़ने में समस्या आई है। कृपया थोड़ी देर बाद फिर प्रयास करें।' "
+                    "Do NOT make up or hallucinate scheme approval or criteria."
+                ),
+                "as_of_date": "2026-08-10",
+            }
+            return json.dumps(error_payload, ensure_ascii=False)
+
 
     @function_tool
     async def lookup_caller(self, context: RunContext, user_id: str) -> str:
@@ -56,7 +116,7 @@ class Assistant(Agent):
         user_id: str,
         name: str,
         language_preference: str = "Hindi",
-        facts: dict | None = None,
+        facts: str | None = None,
     ) -> str:
         """Use this tool to save or update caller information after receiving explicit caller consent.
 
@@ -68,18 +128,31 @@ class Assistant(Agent):
             user_id: The unique identifier or phone number of the caller.
             name: The caller's name.
             language_preference: Preferred language (e.g. Hindi, English, Hinglish).
-            facts: Key-value facts (e.g. schemes_checked, eligibility answers, occupation).
+            facts: A JSON string or summary of key caller facts (e.g. '{"schemes_checked": ["PMSBY"], "occupation": "farmer"}').
         """
         logger.info(
             f"Tool execution: Saving caller info for '{name}' (user_id: '{user_id}')"
         )
+        parsed_facts = {}
+        if facts:
+            if isinstance(facts, dict):
+                parsed_facts = facts
+            elif isinstance(facts, str):
+                try:
+                    parsed_facts = json.loads(facts)
+                    if not isinstance(parsed_facts, dict):
+                        parsed_facts = {"summary": str(facts)}
+                except Exception:
+                    parsed_facts = {"summary": facts}
+
         saved_record = upsert_caller(
             user_id=user_id,
             name=name,
             language_preference=language_preference,
-            facts=facts or {},
+            facts=parsed_facts,
         )
         return f"Successfully saved caller profile for {name} (user_id: {user_id}). Current facts: {saved_record['facts']}"
+
 
 
 server = AgentServer()
