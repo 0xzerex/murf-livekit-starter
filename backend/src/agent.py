@@ -32,8 +32,8 @@ from schemes import evaluate_scheme_eligibility  # noqa: E402
 
 
 class Assistant(Agent):
-    def __init__(self) -> None:
-        super().__init__(instructions=SYSTEM_PROMPT)
+    def __init__(self, instructions: str | None = None) -> None:
+        super().__init__(instructions=instructions or SYSTEM_PROMPT)
 
     @function_tool
     async def check_scheme_eligibility(
@@ -79,7 +79,6 @@ class Assistant(Agent):
                 f"Error executing check_scheme_eligibility for '{scheme_name}': {e}",
                 exc_info=True,
             )
-            # Step 4 Requirement: Handle failure path out loud
             error_payload = {
                 "status": "FAILURE_ERROR",
                 "error_details": str(e),
@@ -92,7 +91,6 @@ class Assistant(Agent):
                 "as_of_date": "2026-08-10",
             }
             return json.dumps(error_payload, ensure_ascii=False)
-
 
     @function_tool
     async def lookup_caller(self, context: RunContext, user_id: str) -> str:
@@ -154,7 +152,6 @@ class Assistant(Agent):
         return f"Successfully saved caller profile for {name} (user_id: {user_id}). Current facts: {saved_record['facts']}"
 
 
-
 server = AgentServer()
 
 
@@ -191,9 +188,30 @@ async def my_agent(ctx: JobContext):
         preemptive_generation=True,
     )
 
-    # Start the session, which initializes the voice pipeline and warms up the models
+    # Detect if current call is an outbound SIP call
+    is_sip = ctx.room.name.startswith("outbound") or "sip" in ctx.room.name.lower()
+    selected_scheme = "Atal Pension Yojana"
+
+    if is_sip:
+        instructions = (
+            f"{SYSTEM_PROMPT}\n\n"
+            "OUTBOUND CALL SCENARIO:\n"
+            "- Ignore any default returning caller logic. Do NOT check for returning caller facts or greet them by name at the start.\n"
+            "- IMPORTANT: You MUST strictly open the conversation with these first two sentences in English:\n"
+            "  1. 'Hello, this is Jan Sahay calling.'\n"
+            f"  2. 'We found you eligible for the {selected_scheme} scheme, and the deadline is approaching on August 15th, so hurry up! If you want to stop these types of calls, reply stop.'\n"
+            f"- If the user says 'yes', you must explain the eligibility criteria for ONLY the {selected_scheme} scheme in EXACTLY ONE SHORT SENTENCE.\n"
+            "- IMPORTANT: To avoid speaking all at once, you MUST speak slowly and keep your responses extremely short (under 15 words).\n"
+            "- If the user says 'no', you must wrap up the call. If they ask how to stop these types of calls, reply exactly: 'To stop these calls, say stop.'\n"
+            "- Do not ask any questions during the main explanation.\n"
+            "- Do not say anything else in your opening turn. Wait for the user's response after this opening."
+        )
+    else:
+        instructions = f"{SYSTEM_PROMPT}\n\nCURRENT USER CALL INFO:\n- Inbound call."
+
+    # Start the session, passing in dynamic instructions
     await session.start(
-        agent=Assistant(),
+        agent=Assistant(instructions=instructions),
         room=ctx.room,
         room_options=room_io.RoomOptions(
             audio_input=room_io.AudioInputOptions(
@@ -209,6 +227,15 @@ async def my_agent(ctx: JobContext):
 
     # Join the room and connect to the user
     await ctx.connect()
+
+    # Trigger speech immediately upon call connection for outbound calls
+    if is_sip:
+        greeting_text = (
+            f"Hello, this is Jan Sahay calling. "
+            f"We found you eligible for the {selected_scheme} scheme, and the deadline is approaching on August 15th, so hurry up! "
+            f"If you want to stop these types of calls, reply stop."
+        )
+        await session.say(greeting_text)
 
 
 if __name__ == "__main__":
