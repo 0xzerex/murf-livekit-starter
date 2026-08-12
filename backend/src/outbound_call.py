@@ -64,6 +64,7 @@ async def make_outbound_call(destination_sip_uri: str, room_name: str = "outboun
             sip_host = os.getenv("SIP_OUTBOUND_HOST", "sip.linphone.org")
             trunk_config = api.SIPOutboundConfig(
                 hostname=sip_host,
+                # pyrefly: ignore [unexpected-keyword]
                 address=sip_host
             )
             request = api.CreateSIPParticipantRequest(

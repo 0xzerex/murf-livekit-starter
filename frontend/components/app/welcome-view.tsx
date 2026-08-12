@@ -117,6 +117,14 @@ export const WelcomeView = React.forwardRef<HTMLDivElement, React.ComponentProps
               {hasEnded ? '🔄 Start Again' : startButtonText}
             </Button>
 
+            <a
+              href="/escalations"
+              className="w-full sm:w-auto h-14 px-6 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm shadow-md flex items-center justify-center gap-2 transition-all hover:scale-105"
+            >
+              <HeadsetIcon size={20} weight="bold" />
+              Escalation Dashboard 🚨
+            </a>
+
             <Button
               variant="outline"
               size="lg"

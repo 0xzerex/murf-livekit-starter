@@ -26,7 +26,7 @@ load_dotenv(".env.local")
 
 sys.path.append(str(Path(__file__).parent))
 
-from db import get_caller, init_db, upsert_caller  # noqa: E402
+from db import create_escalation_record, get_caller, init_db, upsert_caller  # noqa: E402
 from prompt import SYSTEM_PROMPT  # noqa: E402
 from schemes import evaluate_scheme_eligibility  # noqa: E402
 
@@ -34,6 +34,82 @@ from schemes import evaluate_scheme_eligibility  # noqa: E402
 class Assistant(Agent):
     def __init__(self, instructions: str | None = None) -> None:
         super().__init__(instructions=instructions or SYSTEM_PROMPT)
+
+    @function_tool
+    async def create_escalation(
+        self,
+        context: RunContext,
+        user_id: str,
+        caller_name: str,
+        reason_category: str,
+        what_happened: str,
+        agent_checks_performed: str,
+        urgency_level: str = "High",
+        caller_language: str = "Hindi",
+        preferred_followup_method: str = "Phone Call",
+    ) -> str:
+        """Use this tool ONLY AFTER obtaining explicit caller consent to escalate a financial service issue to a human support agent.
+
+        Mandatory Reasons for Escalation:
+        1. 'fraud_report': Caller reports possible fraud, unauthorized debits, phishing, stolen card/credentials, or scam activity.
+        2. 'unauthorized_decision': Caller requests a decision or policy override that the AI agent cannot make (e.g. loan approval override, credit limit decision, dispute fee waiver, account freeze override).
+
+        DO NOT include passwords, OTPs, PINs, bank account numbers, card numbers, Aadhaar, or PAN in what_happened or agent_checks_performed.
+
+        Args:
+            user_id: Unique caller identifier or phone number.
+            caller_name: The caller's name.
+            reason_category: Escalation reason ('fraud_report' or 'unauthorized_decision').
+            what_happened: Concise summary of what occurred (excluding sensitive account numbers/PINs).
+            agent_checks_performed: Verification or eligibility checks completed prior to escalation.
+            urgency_level: Urgency rating ('High', 'Medium', or 'Low').
+            caller_language: Caller's language preference (e.g. 'Hindi', 'English', 'Hinglish').
+            preferred_followup_method: Caller's preferred follow-up method (e.g. 'Phone Call', 'SMS', 'Email').
+        """
+        logger.info(
+            f"Tool execution: Creating escalation request for '{caller_name}' (reason={reason_category}, urgency={urgency_level})"
+        )
+        try:
+            record = create_escalation_record(
+                user_id=user_id,
+                caller_name=caller_name,
+                reason_category=reason_category,
+                what_happened=what_happened,
+                agent_checks=agent_checks_performed,
+                urgency_level=urgency_level,
+                language_preference=caller_language,
+                preferred_followup=preferred_followup_method,
+            )
+            response_payload = {
+                "status": "SUCCESS",
+                "reference_id": record["reference_id"],
+                "saved_summary": {
+                    "who": f"{record['caller_name']} ({record['user_id']})",
+                    "what": record["what_happened"],
+                    "agent_checks": record["agent_checks"],
+                    "urgency": record["urgency_level"],
+                    "language_and_followup": f"{record['language_preference']} | {record['preferred_followup']}",
+                },
+                "spoken_instruction": (
+                    f"Inform the caller that their human-help escalation request has been created successfully with Reference ID '{record['reference_id']}'. "
+                    f"Explain that a human support specialist will review the request and contact them via {record['preferred_followup']}. "
+                    "Explicitly state that review times depend on team availability, and do NOT promise an immediate response unless guaranteed."
+                ),
+            }
+            return json.dumps(response_payload, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"Error creating escalation record: {e}", exc_info=True)
+            return json.dumps(
+                {
+                    "status": "ERROR",
+                    "error_details": str(e),
+                    "spoken_instruction": (
+                        "Inform the caller politely that there was a temporary system error creating the escalation ticket. "
+                        "Provide them with our customer care helpline number 1800-111-2222 as a direct fallback."
+                    ),
+                },
+                ensure_ascii=False,
+            )
 
     @function_tool
     async def check_scheme_eligibility(
