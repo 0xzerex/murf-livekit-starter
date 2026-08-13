@@ -93,10 +93,11 @@ export default async function RootLayout({ children }: RootLayoutProps) {
 
               {/* Nav Links */}
               <nav className="hidden items-center gap-6 md:flex text-sm font-semibold text-slate-700 dark:text-slate-200">
-                <a href="#" className="hover:text-[#0F4C81] transition-colors">Home</a>
-                <a href="#services" className="hover:text-[#0F4C81] transition-colors">Services</a>
-                <a href="#safety-tips" className="hover:text-[#0F4C81] transition-colors">Safety Tips</a>
-                <a href="#contact" className="hover:text-[#0F4C81] transition-colors">Contact</a>
+                <a href="/" className="hover:text-[#0F4C81] transition-colors">Home</a>
+                <a href="/analytics" className="hover:text-[#0F4C81] transition-colors flex items-center gap-1">Analytics 📊</a>
+                <a href="/escalations" className="hover:text-[#0F4C81] transition-colors flex items-center gap-1">Escalations 🚨</a>
+                <a href="/#services" className="hover:text-[#0F4C81] transition-colors">Services</a>
+                <a href="/#safety-tips" className="hover:text-[#0F4C81] transition-colors">Safety Tips</a>
               </nav>
 
               <div className="flex items-center gap-2">

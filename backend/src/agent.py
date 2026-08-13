@@ -26,7 +26,15 @@ load_dotenv(".env.local")
 
 sys.path.append(str(Path(__file__).parent))
 
-from db import create_escalation_record, get_caller, init_db, upsert_caller  # noqa: E402
+import time
+
+from db import (  # noqa: E402
+    create_escalation_record,
+    get_caller,
+    init_db,
+    log_call_outcome,
+    upsert_caller,
+)
 from prompt import SYSTEM_PROMPT  # noqa: E402
 from schemes import evaluate_scheme_eligibility  # noqa: E402
 
@@ -34,6 +42,11 @@ from schemes import evaluate_scheme_eligibility  # noqa: E402
 class Assistant(Agent):
     def __init__(self, instructions: str | None = None) -> None:
         super().__init__(instructions=instructions or SYSTEM_PROMPT)
+        self.eligibility_checked = False
+        self.escalation_created = False
+        self.caller_name = "Citizen"
+        self.language = "Hindi"
+        self.actions_summary: list[str] = []
 
     @function_tool
     async def create_escalation(
@@ -69,6 +82,26 @@ class Assistant(Agent):
         logger.info(
             f"Tool execution: Creating escalation request for '{caller_name}' (reason={reason_category}, urgency={urgency_level})"
         )
+        self.escalation_created = True
+        if caller_name:
+            self.caller_name = str(caller_name).strip()
+        if caller_language:
+            self.language = str(caller_language).strip()
+        self.actions_summary.append(f"Created escalation ticket ({reason_category})")
+
+        if getattr(self, "_current_call_id", None):
+            try:
+                log_call_outcome(
+                    call_id=self._current_call_id,
+                    caller_name=self.caller_name,
+                    language=self.language,
+                    duration_seconds=getattr(self, "_get_duration", lambda: 0)(),
+                    status="success",
+                    summary="; ".join(self.actions_summary),
+                )
+            except Exception as log_err:
+                logger.warning(f"Error immediately updating call outcome in tool: {log_err}")
+
         try:
             record = create_escalation_record(
                 user_id=user_id,
@@ -139,6 +172,22 @@ class Assistant(Agent):
         logger.info(
             f"Tool execution: Evaluating scheme eligibility for '{scheme_name}' (age={age}, income={annual_income_inr}, occupation={occupation})"
         )
+        self.eligibility_checked = True
+        self.actions_summary.append(f"Checked scheme eligibility / document checklist for '{scheme_name}'")
+
+        if getattr(self, "_current_call_id", None):
+            try:
+                log_call_outcome(
+                    call_id=self._current_call_id,
+                    caller_name=self.caller_name,
+                    language=self.language,
+                    duration_seconds=getattr(self, "_get_duration", lambda: 0)(),
+                    status="success",
+                    summary="; ".join(self.actions_summary),
+                )
+            except Exception as log_err:
+                logger.warning(f"Error immediately updating call outcome in tool: {log_err}")
+
         try:
             result = evaluate_scheme_eligibility(
                 scheme_name=scheme_name,
@@ -181,6 +230,10 @@ class Assistant(Agent):
         record = get_caller(user_id)
         if not record:
             return f"No caller record found for user_id: {user_id}."
+        if isinstance(record, dict) and record.get("name"):
+            self.caller_name = str(record["name"]).strip()
+            if record.get("language_preference"):
+                self.language = str(record["language_preference"]).strip()
         return json.dumps(record, ensure_ascii=False)
 
     @function_tool
@@ -207,6 +260,11 @@ class Assistant(Agent):
         logger.info(
             f"Tool execution: Saving caller info for '{name}' (user_id: '{user_id}')"
         )
+        if name:
+            self.caller_name = str(name).strip()
+        if language_preference:
+            self.language = str(language_preference).strip()
+        self.actions_summary.append(f"Saved caller profile for {name}")
         parsed_facts = {}
         if facts:
             if isinstance(facts, dict):
@@ -285,9 +343,50 @@ async def my_agent(ctx: JobContext):
     else:
         instructions = f"{SYSTEM_PROMPT}\n\nCURRENT USER CALL INFO:\n- Inbound call."
 
+    start_time = time.time()
+    call_id = (
+        ctx.room.name
+        if (ctx.room and ctx.room.name)
+        else f"call-{int(start_time)}"
+    )
+
+    assistant = Assistant(instructions=instructions)
+    assistant._current_call_id = call_id
+    assistant._get_duration = lambda: max(0, int(time.time() - start_time))
+
+    async def _on_shutdown():
+        duration = max(0, int(time.time() - start_time))
+        is_success = assistant.eligibility_checked or assistant.escalation_created
+        status = "success" if is_success else "failed"
+        if assistant.actions_summary:
+            summary = "; ".join(assistant.actions_summary)
+        else:
+            summary = (
+                "Completed general inquiry"
+                if is_success
+                else "Caller disconnected early or did not complete an inquiry"
+            )
+
+        logger.info(
+            f"Logging call outcome on shutdown for {call_id}: status={status}, duration={duration}s, summary='{summary}'"
+        )
+        try:
+            log_call_outcome(
+                call_id=call_id,
+                caller_name=assistant.caller_name,
+                language=assistant.language,
+                duration_seconds=duration,
+                status=status,
+                summary=summary,
+            )
+        except Exception as log_err:
+            logger.error(f"Failed to log call outcome to DB on shutdown: {log_err}", exc_info=True)
+
+    ctx.add_shutdown_callback(_on_shutdown)
+
     # Start the session, passing in dynamic instructions
     await session.start(
-        agent=Assistant(instructions=instructions),
+        agent=assistant,
         room=ctx.room,
         room_options=room_io.RoomOptions(
             audio_input=room_io.AudioInputOptions(
@@ -312,6 +411,7 @@ async def my_agent(ctx: JobContext):
             f"If you want to stop these types of calls, reply stop."
         )
         await session.say(greeting_text)
+
 
 
 if __name__ == "__main__":

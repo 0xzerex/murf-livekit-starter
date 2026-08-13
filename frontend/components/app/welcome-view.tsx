@@ -9,6 +9,7 @@ import {
   ArrowRightIcon,
   CheckCircleIcon,
   SparkleIcon,
+  ChartBarIcon,
 } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/button';
 import { JanSahayAvatar, type AgentDisplayState } from '@/components/app/financial-avatar';
@@ -107,19 +108,27 @@ export const WelcomeView = React.forwardRef<HTMLDivElement, React.ComponentProps
           </p>
 
           {/* CTA Buttons */}
-          <div className="mt-8 flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
+          <div className="mt-8 flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto flex-wrap justify-center">
             <Button
               size="lg"
               onClick={onStartCall}
-              className="w-full sm:w-72 h-14 rounded-full bg-[#0F4C81] hover:bg-[#0b3860] text-white font-bold text-base shadow-xl shadow-[#0F4C81]/30 flex items-center justify-center gap-2.5 transition-all hover:scale-105"
+              className="w-full sm:w-64 h-14 rounded-full bg-[#0F4C81] hover:bg-[#0b3860] text-white font-bold text-base shadow-xl shadow-[#0F4C81]/30 flex items-center justify-center gap-2.5 transition-all hover:scale-105"
             >
               <MicrophoneIcon size={22} weight="fill" className="text-[#FF9933]" />
               {hasEnded ? '🔄 Start Again' : startButtonText}
             </Button>
 
             <a
+              href="/analytics"
+              className="w-full sm:w-auto h-14 px-5 rounded-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm shadow-md flex items-center justify-center gap-2 transition-all hover:scale-105"
+            >
+              <ChartBarIcon size={20} weight="bold" />
+              Call Analytics 📊
+            </a>
+
+            <a
               href="/escalations"
-              className="w-full sm:w-auto h-14 px-6 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm shadow-md flex items-center justify-center gap-2 transition-all hover:scale-105"
+              className="w-full sm:w-auto h-14 px-5 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm shadow-md flex items-center justify-center gap-2 transition-all hover:scale-105"
             >
               <HeadsetIcon size={20} weight="bold" />
               Escalation Dashboard 🚨
@@ -129,7 +138,7 @@ export const WelcomeView = React.forwardRef<HTMLDivElement, React.ComponentProps
               variant="outline"
               size="lg"
               onClick={scrollToServices}
-              className="w-full sm:w-44 h-14 rounded-full border-2 border-slate-300 dark:border-slate-700 font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+              className="w-full sm:w-36 h-14 rounded-full border-2 border-slate-300 dark:border-slate-700 font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
             >
               Learn More
             </Button>

@@ -91,6 +91,20 @@ def init_db(db_path: Path | str = DEFAULT_DB_PATH) -> None:
                 );
                 """
             )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS calls (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    call_id TEXT UNIQUE NOT NULL,
+                    caller_name TEXT DEFAULT 'Citizen',
+                    language TEXT DEFAULT 'Hindi',
+                    duration_seconds INTEGER DEFAULT 0,
+                    status TEXT NOT NULL CHECK(status IN ('success', 'failed')),
+                    summary TEXT,
+                    created_at TEXT NOT NULL
+                );
+                """
+            )
         logger.info(f"Database initialized successfully at {db_path}")
     finally:
         conn.close()
@@ -301,4 +315,112 @@ def update_escalation_status(
             return cursor.rowcount > 0
     finally:
         conn.close()
+
+
+def log_call_outcome(
+    call_id: str,
+    caller_name: str = "Citizen",
+    language: str = "Hindi",
+    duration_seconds: int = 0,
+    status: str = "failed",
+    summary: str = "",
+    db_path: Path | str = DEFAULT_DB_PATH,
+) -> dict[str, Any]:
+    """Log a call outcome ('success' or 'failed') to the calls table with sanitized summary."""
+    init_db(db_path)
+
+    clean_summary = sanitize_text(summary)
+    valid_status = "success" if str(status).strip().lower() == "success" else "failed"
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    conn = get_db_connection(db_path)
+    try:
+        with conn:
+            conn.execute(
+                """
+                INSERT INTO calls (call_id, caller_name, language, duration_seconds, status, summary, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(call_id) DO UPDATE SET
+                    caller_name = excluded.caller_name,
+                    language = excluded.language,
+                    duration_seconds = excluded.duration_seconds,
+                    status = excluded.status,
+                    summary = excluded.summary,
+                    created_at = excluded.created_at;
+                """,
+                (
+                    str(call_id).strip(),
+                    str(caller_name).strip() or "Citizen",
+                    str(language).strip() or "Hindi",
+                    int(duration_seconds),
+                    valid_status,
+                    clean_summary,
+                    now_iso,
+                ),
+            )
+    finally:
+        conn.close()
+
+    return {
+        "call_id": call_id,
+        "caller_name": caller_name,
+        "language": language,
+        "duration_seconds": duration_seconds,
+        "status": valid_status,
+        "summary": clean_summary,
+        "created_at": now_iso,
+    }
+
+
+def get_recent_calls(
+    limit: int = 50,
+    db_path: Path | str = DEFAULT_DB_PATH,
+) -> list[dict[str, Any]]:
+    """Retrieve recent call records ordered by creation date (newest first)."""
+    init_db(db_path)
+    conn = get_db_connection(db_path)
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM calls ORDER BY created_at DESC LIMIT ?", (limit,))
+        rows = cursor.fetchall()
+        return [dict(row) for row in rows]
+    finally:
+        conn.close()
+
+
+def get_call_stats(
+    db_path: Path | str = DEFAULT_DB_PATH,
+) -> dict[str, Any]:
+    """Retrieve aggregate analytics for total, successful, failed calls, and average duration."""
+    init_db(db_path)
+    conn = get_db_connection(db_path)
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT
+                COUNT(*) as total_calls,
+                SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END) as successful_calls,
+                SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed_calls,
+                ROUND(AVG(duration_seconds), 1) as avg_duration
+            FROM calls;
+            """
+        )
+        row = cursor.fetchone()
+        if not row or row["total_calls"] == 0:
+            return {
+                "total_calls": 0,
+                "successful_calls": 0,
+                "failed_calls": 0,
+                "avg_duration": 0.0,
+            }
+        return {
+            "total_calls": row["total_calls"] or 0,
+            "successful_calls": row["successful_calls"] or 0,
+            "failed_calls": row["failed_calls"] or 0,
+            "avg_duration": row["avg_duration"] or 0.0,
+        }
+    finally:
+        conn.close()
+
 
