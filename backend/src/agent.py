@@ -36,6 +36,7 @@ from db import (  # noqa: E402
     upsert_caller,
 )
 from prompt import SYSTEM_PROMPT  # noqa: E402
+from scheme_specialist import SchemeSpecialist  # noqa: E402
 from schemes import evaluate_scheme_eligibility  # noqa: E402
 
 
@@ -284,6 +285,42 @@ class Assistant(Agent):
             facts=parsed_facts,
         )
         return f"Successfully saved caller profile for {name} (user_id: {user_id}). Current facts: {saved_record['facts']}"
+
+    @function_tool
+    async def transfer_to_scheme_specialist(
+        self,
+        context: RunContext,
+        reason_or_query: str | None = None,
+    ) -> str:
+        """Use this tool to hand off or transfer the call to the Government Schemes Specialist agent whenever the caller asks detailed questions about Indian government financial schemes (such as PM Kisan, PM Awas Yojana, PMSBY, PMJJBY, APY, SSY, PMJDY, PM-MUDRA), eligibility rules, or document checklists.
+
+        Args:
+            reason_or_query: Brief summary of the caller's scheme query or reason for transfer.
+        """
+        logger.info(
+            f"Tool execution: Transferring caller to SchemeSpecialist (reason: {reason_or_query})"
+        )
+        self.actions_summary.append("Transferred caller to Government Schemes Specialist")
+
+        # Announce the transfer out loud to the caller
+        transfer_announcement = (
+            "I am connecting you to our Government Schemes Specialist. Please hold on a moment."
+        )
+        if context and context.session:
+            await context.session.say(transfer_announcement)
+
+        # Create specialist agent instance and copy caller state
+        specialist = SchemeSpecialist()
+        specialist.caller_name = self.caller_name
+        specialist.language = self.language
+        specialist._current_call_id = getattr(self, "_current_call_id", None)
+        specialist._get_duration = getattr(self, "_get_duration", lambda: 0)
+
+        # Perform handoff: update agent in session (preserves conversation history)
+        if context and context.session:
+            context.session.update_agent(specialist)
+
+        return "Successfully transferred caller to Government Schemes Specialist."
 
 
 server = AgentServer()
